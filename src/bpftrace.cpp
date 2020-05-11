@@ -91,10 +91,10 @@ int format(char * s, size_t n, const char * fmt, std::vector<std::unique_ptr<IPr
 
 BPFtrace::~BPFtrace()
 {
-  for (const auto& pair : exe_sym_)
+  for (const auto &pair : pid_sym_)
   {
     if (pair.second.second)
-      bcc_free_symcache(pair.second.second, pair.second.first);
+      bcc_free_symcache(pair.second.second, pair.first);
   }
 
   if (ksyms_)
@@ -1756,21 +1756,36 @@ std::string BPFtrace::resolve_usym(uintptr_t addr, int pid, bool show_offset, bo
   symopts.use_debug_file = 1;
   symopts.check_debug_file_crc = 1;
   symopts.use_symbol_type = BCC_SYM_ALL_TYPES;
-
   if (resolve_user_symbols_)
   {
     if (cache_user_symbols_)
     {
-      std::string pid_exe = get_pid_exe(pid);
-      if (exe_sym_.find(pid_exe) == exe_sym_.end())
+      auto itr = pid_sym_.find(pid);
+      if (itr != pid_sym_.end())
       {
-        // not cached, create new ProcSyms cache
-        psyms = bcc_symcache_new(pid, &symopts);
-        exe_sym_[pid_exe] = std::make_pair(pid, psyms);
+        // Check if same process (based on creation time)
+        struct timespec ts;
+        if (!get_pid_create_time(pid, &ts) &&
+            !memcmp(&ts, &itr->second.first, sizeof(ts)))
+        {
+          psyms = itr->second.second;
+        }
+        else
+        {
+          // Time don't match, proc is dead, drop cache
+          bcc_free_symcache(itr->second.second, pid);
+          pid_sym_.erase(itr);
+        }
       }
-      else
+      if (!psyms)
       {
-        psyms = exe_sym_[pid_exe].second;
+        struct timespec ts;
+        if (!get_pid_create_time(pid, &ts))
+        {
+          // not cached, create new ProcSyms cache
+          psyms = bcc_symcache_new(pid, &symopts);
+          pid_sym_[pid] = std::make_pair(ts, psyms);
+        }
       }
     }
     else
@@ -1801,6 +1816,21 @@ std::string BPFtrace::resolve_usym(uintptr_t addr, int pid, bool show_offset, bo
     bcc_free_symcache(psyms, pid);
 
   return symbol.str();
+}
+
+int BPFtrace::get_pid_create_time(int pid, struct timespec *ts)
+{
+  char path[128];
+  int err = snprintf(path, 128, "/proc/%d", pid);
+  struct stat st;
+
+  if (err < 0)
+    return err;
+  path[std::min(err, 128)] = '\0';
+
+  err = lstat(path, &st);
+  *ts = st.st_ctim;
+  return err;
 }
 
 std::string BPFtrace::resolve_probe(uint64_t probe_id) const
