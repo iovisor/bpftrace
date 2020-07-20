@@ -83,6 +83,7 @@ int AttachPointParser::parse_attachpoint(AttachPoint &ap)
       return watchpoint_parser();
     case ProbeType::kfunc:
     case ProbeType::kretfunc:
+    case ProbeType::lsm:
       return kfunc_parser();
     default:
       errs_ << "Unrecognized probe type: " << ap_->provider << std::endl;
@@ -579,10 +580,7 @@ int AttachPointParser::kfunc_parser()
   }
 
   if (parts_[1].find('*') != std::string::npos)
-  {
-    errs_ << "wildcard expansion is not supported for kfunc/kretfunc probes" << std::endl;
-    return 1;
-  }
+    ap_->need_expansion = true;
 
   ap_->func = parts_[1];
   return 0;

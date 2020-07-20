@@ -56,13 +56,14 @@ void test(BPFtrace &bpftrace,
           const std::string &input,
           int expected_result = 0,
           bool safe_mode = true,
-          bool has_child = false)
+          bool has_child = false,
+          int expected_field_analyser = 0)
 {
   bpftrace.safe_mode_ = safe_mode;
   ASSERT_EQ(driver.parse_str(input), 0);
 
   ast::FieldAnalyser fields(driver.root_, bpftrace);
-  EXPECT_EQ(fields.analyse(), 0);
+  EXPECT_EQ(fields.analyse(), expected_field_analyser);
 
   ClangParser clang;
   clang.parse(driver.root_, bpftrace);
@@ -109,13 +110,20 @@ void test(BPFfeature &feature,
 void test(const std::string &input,
           int expected_result = 0,
           bool safe_mode = true,
-          bool has_child = false)
+          bool has_child = false,
+          int expected_field_analyser = 0)
 {
   MockBPFfeature feature;
   auto bpftrace = get_mock_bpftrace();
   Driver driver(*bpftrace);
-  test(
-      *bpftrace, feature, driver, input, expected_result, safe_mode, has_child);
+  test(*bpftrace,
+       feature,
+       driver,
+       input,
+       expected_result,
+       safe_mode,
+       has_child,
+       expected_field_analyser);
 }
 
 TEST(semantic_analyser, builtin_variables)
@@ -1578,6 +1586,7 @@ TEST(semantic_analyser, struct_member_keywords)
 TEST(semantic_analyser, jumps)
 {
   test("i:s:1 { return; }", 0);
+  test("i:s:1 { return -1; }", 1, true, false, 0);
   // must be used in loops
   test("i:s:1 { break; }", 1);
   test("i:s:1 { continue; }", 1);
@@ -1828,12 +1837,36 @@ TEST_F(semantic_analyser_btf, kfunc)
   test("kfunc:func_1 { $x = args->a; $y = args->foo1; }", 0);
   test("kretfunc:func_1 { $x = retval; }", 0);
   test("kretfunc:func_1 { $x = args->foo; }", 1);
+  test("kfunc:func_1, kfunc:func_2 { }", 0);
+  test("kfunc:func_1, kfunc:func_2 { $x = args->foo; }", 1, true, false, 1);
+  test("kfunc:func_2, kfunc:func_3 { }", 0);
+  test("kfunc:func_2, kfunc:func_3 { $x = args->foo1; }", 0);
+  test("kfunc:func_2, kfunc:aaa { $x = args->foo1; }", 0, true, false, 1);
+  test("kfunc:func_* { }", 0);
+  test("kfunc:func_* { $x = args->foo1; }", 0, true, false, 1);
+}
+
+TEST_F(semantic_analyser_btf, lsm)
+{
+  test("lsm:read { 1 }", 0);
+  test("lsm:commit { 1 }", 0);
+  test("lsm:read { $x = args->a; }", 0);
+  test("lsm:commit { $x = args->a; }", 0);
+  test("lsm:read { $x = retval; }", 0);
+  test("lsm:commit { $x = retval; }", 1);
+  test("lsm:read, lsm:commit { }", 0);
+  test("lsm:read, lsm:commit { $x = args->a; }", 0, true, false, 1);
+  test("lsm:* { }", 0);
+  test("lsm:* { $x = args->a; }", 1, true, false, 0);
+  test("lsm:read { return -1; }", 0);
 }
 
 TEST_F(semantic_analyser_btf, short_name)
 {
   test("f:func_1 { 1 }", 0);
   test("fr:func_1 { 1 }", 0);
+  test("l:read { 1 }", 0);
+  test("l:commit { 1 }", 0);
 }
 
 #endif // HAVE_LIBBPF_BTF_DUMP

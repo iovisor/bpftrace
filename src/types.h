@@ -329,6 +329,7 @@ enum class ProbeType
   watchpoint,
   kfunc,
   kretfunc,
+  lsm,
 };
 
 struct ProbeItem
@@ -355,6 +356,7 @@ const std::vector<ProbeItem> PROBE_LIST =
   { "watchpoint", "w", ProbeType::watchpoint },
   { "kfunc", "f", ProbeType::kfunc },
   { "kretfunc", "fr", ProbeType::kretfunc },
+  { "lsm", "l", ProbeType::lsm },
 };
 
 std::string typestr(Type t);

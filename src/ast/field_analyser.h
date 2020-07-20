@@ -1,20 +1,24 @@
 #pragma once
 
-#include <string>
-#include <unordered_set>
 #include "ast.h"
 #include "bpftrace.h"
+#include <iostream>
+#include <string>
+#include <unordered_set>
 
 namespace bpftrace {
 namespace ast {
 
 class FieldAnalyser : public Visitor {
 public:
-  explicit FieldAnalyser(Node *root, BPFtrace &bpftrace)
+  explicit FieldAnalyser(Node *root,
+                         BPFtrace &bpftrace,
+                         std::ostream &out = std::cerr)
       : type_(""),
         root_(root),
         bpftrace_(bpftrace),
-        prog_type_(BPF_PROG_TYPE_UNSPEC)
+        prog_type_(BPF_PROG_TYPE_UNSPEC),
+        out_(out)
   { }
 
   void visit(Integer &integer) override;
@@ -48,11 +52,25 @@ public:
   int analyse();
 
 private:
+  void warning(const std::string &msg, const location &loc);
+  void error(const std::string &msg, const location &loc);
+  void check_kfunc_args(void);
+  bool resolve_args(AttachPoint &ap);
+  bool compare_args(std::map<std::string, SizedType> args1,
+                    std::map<std::string, SizedType> args2);
+
   std::string    type_;
   Node          *root_;
   BPFtrace      &bpftrace_;
   bpf_prog_type  prog_type_;
-  bool           builtin_args_;
+  bool           has_builtin_args_;
+  bool           has_mixed_args_;
+  bool           has_kfunc_probe_;
+  Probe         *probe_;
+  location       mixed_args_loc_;
+
+  std::ostream       &out_;
+  std::ostringstream  err_;
 
   std::map<std::string, SizedType> ap_args_;
 };

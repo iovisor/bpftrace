@@ -249,7 +249,8 @@ void SemanticAnalyser::visit(Builtin &builtin)
     {
       builtin.type = CreateUInt64();
     }
-    else if (type == ProbeType::kfunc || type == ProbeType::kretfunc)
+    else if (type == ProbeType::kfunc || type == ProbeType::kretfunc ||
+             type == ProbeType::lsm)
     {
       auto it = ap_args_.find("$retval");
 
@@ -363,7 +364,8 @@ void SemanticAnalyser::visit(Builtin &builtin)
     {
       // no special action in here
     }
-    else if (type == ProbeType::kfunc || type == ProbeType::kretfunc)
+    else if (type == ProbeType::kfunc || type == ProbeType::kretfunc ||
+             type == ProbeType::lsm)
     {
       builtin.type = SizedType(Type::ctx, 0);
       builtin.type.is_kfarg = true;
@@ -1504,9 +1506,17 @@ void SemanticAnalyser::visit(Jump &jump)
 {
   switch (jump.ident)
   {
-    case bpftrace::Parser::token::RETURN:
+    case bpftrace::Parser::token::RETURN: {
+      ProbeType type = single_provider_type();
+
+      if ((jump.expr != &jump.zero) && (type != ProbeType::lsm))
+        error("Cannot specify return value in probes other than lsm.",
+              jump.loc);
+
+      jump.expr->accept(*this);
       // return can be used outside of loops
       break;
+    }
     case bpftrace::Parser::token::BREAK:
     case bpftrace::Parser::token::CONTINUE:
       if (!in_loop())
@@ -2145,23 +2155,26 @@ void SemanticAnalyser::visit(AttachPoint &ap)
       }
     }
   }
-  else if (ap.provider == "kfunc" || ap.provider == "kretfunc")
+  else if (ap.provider == "kfunc" || ap.provider == "kretfunc" ||
+           ap.provider == "lsm")
   {
 #ifndef HAVE_BCC_KFUNC
-    error("kfunc/kretfunc not available for your linked against bcc version.",
-          ap.loc);
+    ERR(ap.provider << " not available for your bcc version.", ap.loc);
     return;
 #endif
+    bool is_lsm = ap.provider == "lsm";
 
-    bool supported = feature_.has_prog_kfunc() && bpftrace_.btf_.has_data();
+    bool supported = (is_lsm ? feature_.has_prog_lsm()
+                             : feature_.has_prog_kfunc()) &&
+                     bpftrace_.btf_.has_data();
     if (!supported)
     {
-      error("kfunc/kretfunc not available for your kernel version.", ap.loc);
+      ERR(ap.provider << " not available for your kernel version.", ap.loc);
       return;
     }
 
     const auto& ap_map = bpftrace_.btf_ap_args_;
-    auto it = ap_map.find(ap.provider + ap.func);
+    auto it = ap_map.find(probe_->name());
 
     if (it != ap_map.end())
     {

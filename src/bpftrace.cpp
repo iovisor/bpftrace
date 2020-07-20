@@ -370,6 +370,18 @@ std::set<std::string> BPFtrace::find_wildcard_matches(
         func = attach_point.ns + ":" + attach_point.func;
       break;
     }
+    case ProbeType::kfunc:
+    case ProbeType::kretfunc: {
+      symbol_stream = btf_.kfunc();
+      func = attach_point.func;
+      break;
+    }
+    case ProbeType::lsm:
+    {
+      symbol_stream = btf_.lsm();
+      func = attach_point.func;
+      break;
+    }
     default:
     {
       throw WildcardException("Wildcard matches aren't available on probe type '"
@@ -932,6 +944,7 @@ bool attach_reverse(const Probe &p)
     case ProbeType::usdt:
     case ProbeType::software:
     case ProbeType::kfunc:
+    case ProbeType::lsm:
       return true;
     case ProbeType::kretfunc:
     case ProbeType::kretprobe:
