@@ -82,7 +82,24 @@ libbpf::bpf_func_id IRBuilderBPF::selectProbeReadHelper(AddrSpace as, bool str)
   return fn;
 }
 
-AllocaInst *IRBuilderBPF::CreateUSym(llvm::Value *val)
+Value *IRBuilderBPF::CreateGetCurrentPidTgidPreferSelfNs(Value *ctx,
+                                                         const location &loc)
+{
+  const auto &pidns = bpftrace_.get_pidns_self_stat();
+  Value *pid_tgid;
+
+  if (bpftrace_.feature_->has_helper_get_ns_current_pid_tgid())
+    pid_tgid = CreateGetNsCurrentPidTgid(
+        ctx, getInt64(pidns.st_dev), getInt64(pidns.st_ino), loc);
+  else
+    pid_tgid = CreateGetPidTgid();
+
+  return pid_tgid;
+}
+
+AllocaInst *IRBuilderBPF::CreateUSym(Value *ctx,
+                                     llvm::Value *val,
+                                     const location &loc)
 {
   std::vector<llvm::Type *> elements = {
     getInt64Ty(), // addr
@@ -91,7 +108,13 @@ AllocaInst *IRBuilderBPF::CreateUSym(llvm::Value *val)
   StructType *usym_t = GetStructType("usym_t", elements, false);
   AllocaInst *buf = CreateAllocaBPF(usym_t, "usym");
 
-  Value *pid = CreateLShr(CreateGetPidTgid(), 32);
+  // Try to use pid relative to bpftrace's PID namespace whenever available
+  // b/c bpftrace reads the executable file from /proc/<pid>/exe and that
+  // procfs file is PID namespaced
+  Value *pid_tgid = CreateGetCurrentPidTgidPreferSelfNs(ctx, loc);
+
+  // Extract PID
+  Value *pid = CreateLShr(pid_tgid, 32);
 
   // The extra 0 here ensures the type of addr_offset will be int64
   Value *addr_offset = CreateGEP(buf, { getInt64(0), getInt32(0) });
@@ -859,6 +882,58 @@ CallInst *IRBuilderBPF::CreateGetPidTgid()
       getInt64(libbpf::BPF_FUNC_get_current_pid_tgid),
       getpidtgid_func_ptr_type);
   return createCall(getpidtgid_func, {}, "get_pid_tgid");
+}
+
+Value *IRBuilderBPF::CreateGetNsCurrentPidTgid(Value *ctx,
+                                               Value *dev,
+                                               Value *ino,
+                                               const location &loc)
+{
+  assert(ctx && ctx->getType() == getInt8PtrTy());
+  assert(dev && dev->getType() == getInt64Ty());
+  assert(ino && ino->getType() == getInt64Ty());
+
+  // long bpf_get_ns_current_pid_tgid(u64 dev, u64 ino, struct bpf_pidns_info
+  // *nsdata, u32 size)
+  StructType *bpf_pidns_info = GetStructType("bpf_pidns_info_t",
+                                             { getInt32Ty(), getInt32Ty() },
+                                             false);
+  FunctionType *getnspidtgid_func_type = FunctionType::get(
+      getInt64Ty(),
+      { getInt64Ty(),
+        getInt64Ty(),
+        bpf_pidns_info->getPointerTo(),
+        getInt32Ty() },
+      false);
+  PointerType *getnspidtgid_func_ptr_type = PointerType::get(
+      getnspidtgid_func_type, 0);
+  Constant *getnspidtgid_func = ConstantExpr::getCast(
+      Instruction::IntToPtr,
+      getInt64(libbpf::BPF_FUNC_get_ns_current_pid_tgid),
+      getnspidtgid_func_ptr_type);
+
+  // Allocate out buf
+  AllocaInst *buf = CreateAllocaBPF(bpf_pidns_info, "bpf_pidns_info");
+  auto &layout = module_.getDataLayout();
+  auto struct_size = layout.getTypeAllocSize(bpf_pidns_info);
+
+  CallInst *call = createCall(getnspidtgid_func,
+                              { dev, ino, buf, getInt32(struct_size) },
+                              "get_ns_current_pid_tgid");
+  CreateHelperErrorCond(
+      ctx, call, libbpf::BPF_FUNC_get_ns_current_pid_tgid, loc);
+
+  // Encode return value just like `CreateGetPidTgid()``
+  Value *pid = CreateIntCast(CreateLoad(
+                                 CreateGEP(buf, { getInt32(0), getInt32(0) })),
+                             getInt64Ty(),
+                             false);
+  Value *tgid = CreateIntCast(CreateLoad(
+                                  CreateGEP(buf, { getInt32(0), getInt32(1) })),
+                              getInt64Ty(),
+                              false);
+  CreateLifetimeEnd(buf);
+  return CreateOr(CreateShl(tgid, 32), pid);
 }
 
 CallInst *IRBuilderBPF::CreateGetCurrentCgroupId()
