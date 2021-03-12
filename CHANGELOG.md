@@ -9,6 +9,8 @@ and this project adheres to
 ## Unreleased
 
 #### Added
+- Add C like pointer arithmetic
+  - [#1881](https://github.com/iovisor/bpftrace/pull/1881)
 
 #### Changed
 
