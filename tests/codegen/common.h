@@ -13,6 +13,7 @@
 #include "codegen_llvm.h"
 #include "driver.h"
 #include "fake_map.h"
+#include "passes/remove_positional_params.h"
 #include "semantic_analyser.h"
 #include "tracepoint_format_parser.h"
 
@@ -45,18 +46,30 @@ static void test(BPFtrace &bpftrace,
   ASSERT_EQ(driver.parse_str(input), 0);
 
   ClangParser clang;
-  clang.parse(driver.root_, bpftrace);
+  clang.parse(driver.root(), bpftrace);
 
   ASSERT_EQ(driver.parse_str(input), 0);
 
   // Override to mockbpffeature.
   bpftrace.feature_ = std::make_unique<MockBPFfeature>(true);
-  ast::SemanticAnalyser semantics(driver.root_, bpftrace);
-  ASSERT_EQ(semantics.analyse(), 0);
-  ASSERT_EQ(semantics.create_maps(true), 0);
+
+  ast::PassManager pm;
+  pm.AddPass(ast::CreateRemovePositionalParamPass());
+  pm.AddPass(ast::CreateSemanticPass());
+  pm.AddPass(ast::CreateFakeMapCreatePass());
+
+  ast::PassContext ctx(bpftrace, std::cerr);
+
+  auto result = pm.Run(driver.release(), ctx);
+
+  ASSERT_TRUE(result.Ok());
+  if (!result.Ok())
+    return;
+
+  auto root = result.Root();
 
   std::stringstream out;
-  ast::CodegenLLVM codegen(driver.root_, bpftrace);
+  ast::CodegenLLVM codegen(root, bpftrace);
   codegen.generate_ir();
   codegen.DumpIR(out);
   // Test that generated code compiles cleanly

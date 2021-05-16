@@ -30,11 +30,6 @@ public:
   {
   }
 
-  explicit SemanticAnalyser(Node *root, BPFtrace &bpftrace, bool has_child)
-      : SemanticAnalyser(root, bpftrace, std::cerr, has_child)
-  {
-  }
-
   explicit SemanticAnalyser(Node *root,
                             BPFtrace &bpftrace,
                             bool has_child,
@@ -137,10 +132,11 @@ private:
   bool has_begin_probe_ = false;
   bool has_end_probe_ = false;
   bool has_child_ = false;
-  bool has_pos_param_ = false;
 };
 
 Pass CreateSemanticPass();
 Pass CreateMapCreatePass();
+Pass CreateFakeMapCreatePass();
+
 } // namespace ast
 } // namespace bpftrace
