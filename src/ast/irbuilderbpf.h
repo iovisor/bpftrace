@@ -7,6 +7,7 @@
 
 #include <llvm/Config/llvm-config.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
 #if LLVM_VERSION_MAJOR >= 5 && LLVM_VERSION_MAJOR < 7
 #define CREATE_MEMCPY(dst, src, size, algn)                                    \
@@ -33,6 +34,19 @@
 #else
 #define CREATE_MEMSET(ptr, val, size, align)                                   \
   CreateMemSet((ptr), (val), (size), (align))
+#endif
+
+#if LLVM_VERSION_MAJOR >= 5 && LLVM_VERSION_MAJOR < 8
+#define SPLIT_EDGE(from, to, dt, li, mssau, bbname)                            \
+  SplitEdge((from), (to), (dt), (li))
+#elif LLVM_VERSION_MAJOR >= 8 && LLVM_VERSION_MAJOR < 12
+#define SPLIT_EDGE(from, to, dt, li, mssau, bbname)                            \
+  SplitEdge((from), (to), (dt), (li), (mssau))
+#elif LLVM_VERSION_MAJOR >= 12
+#define SPLIT_EDGE(from, to, dt, li, mssau, bbname)                            \
+  SplitEdge((from), (to), (dt), (li), (mssau), (bbname))
+#else
+#error Unsupported LLVM version
 #endif
 
 namespace bpftrace {
@@ -151,13 +165,27 @@ public:
   CallInst   *CreateGetRandom();
   CallInst   *CreateGetStackId(Value *ctx, bool ustack, StackType stack_type, const location& loc);
   CallInst   *CreateGetJoinMap(Value *ctx, const location& loc);
+  CallInst *CreateGetFmtStrMap(Value *ctx,
+                               PointerType *printf_struct_ptr_ty,
+                               const location &loc);
   CallInst   *createCall(Value *callee, ArrayRef<Value *> args, const Twine &Name);
   void        CreateGetCurrentComm(Value *ctx, AllocaInst *buf, size_t size, const location& loc);
   void        CreatePerfEventOutput(Value *ctx, Value *data, size_t size);
   void        CreateSignal(Value *ctx, Value *sig, const location &loc);
   void        CreateOverrideReturn(Value *ctx, Value *rc);
-  void        CreateHelperError(Value *ctx, Value *return_value, libbpf::bpf_func_id func_id, const location& loc);
-  void        CreateHelperErrorCond(Value *ctx, Value *return_value, libbpf::bpf_func_id func_id, const location& loc, bool compare_zero=false);
+  void CreateHelperError(Value *ctx,
+                         Value *return_value,
+                         libbpf::bpf_func_id func_id,
+                         const location &loc,
+                         bool is_fatal = false);
+  void CreateHelperErrorCond(Value *ctx,
+                             Value *return_value,
+                             libbpf::bpf_func_id func_id,
+                             const location &loc,
+                             const std::string &helper_name = "helper",
+                             bool compare_zero = false,
+                             bool require_success = false,
+                             llvm::BasicBlock *helper_merge_block = nullptr);
   StructType *GetStructType(std::string name, const std::vector<llvm::Type *> & elements, bool packed = false);
   AllocaInst *CreateUSym(llvm::Value *val);
   Value      *CreatKFuncArg(Value *ctx, SizedType& type, std::string& name);
@@ -180,6 +208,7 @@ public:
   // BEGIN { if (nsecs > 0) { $a = 1 } else { $a = 2 } print($a); exit() }
   void hoist(const std::function<void()> &functor);
   int helper_error_id_ = 0;
+  BasicBlock *post_hoist_block_ = nullptr;
 
 private:
   Module &module_;
@@ -190,10 +219,27 @@ private:
                                 Builtin &builtin,
                                 AddrSpace as,
                                 const location &loc);
-  CallInst *createMapLookup(int mapid, Value *key);
+  CallInst *createMapLookup(int mapid,
+                            Value *key,
+                            const std::string &name = "lookup_elem");
+  CallInst *createMapLookup(int mapid,
+                            Value *key,
+                            PointerType *ptr_ty,
+                            const std::string &name = "lookup_elem");
   Constant *createProbeReadStrFn(llvm::Type *dst,
                                  llvm::Type *src,
                                  AddrSpace as);
+  CallInst *CreateGetScratchMap(Value *ctx,
+                                int mapid,
+                                const std::string &name,
+                                const location &loc,
+                                int key = 0);
+  CallInst *CreateGetScratchMap(Value *ctx,
+                                int mapid,
+                                const std::string &name,
+                                PointerType *ptr_ty,
+                                const location &loc,
+                                int key = 0);
   libbpf::bpf_func_id selectProbeReadHelper(AddrSpace as, bool str);
 
   std::map<std::string, StructType *> structs_;
