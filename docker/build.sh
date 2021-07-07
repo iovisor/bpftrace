@@ -11,6 +11,7 @@ EMBED_BUILD_LLVM=${EMBED_BUILD_LLVM:-OFF}
 ALLOW_UNSAFE_PROBE=${ALLOW_UNSAFE_PROBE:-OFF}
 DEPS_ONLY=${DEPS_ONLY:-OFF}
 RUN_TESTS=${RUN_TESTS:-1}
+RUN_MEMLEAK_TEST=${RUN_MEMLEAK_TEST:-0}
 VENDOR_GTEST=${VENDOR_GTEST:-OFF}
 CI_TIMEOUT=${CI_TIMEOUT:-0}
 BUILD_LIBBPF=${BUILD_LIBBPF:-OFF}
@@ -55,4 +56,11 @@ if [ $RUN_TESTS = 1 ]; then
   else
     ./tests/bpftrace_test $TEST_ARGS;
   fi
+fi
+
+# Memleak test needs the bpftrace binary with -fsanitize-address
+if [ $RUN_MEMLEAK_TEST = 1 ]; then
+    cmake -DBUILD_ASAN=ON -DBPFTRACE=bpftrace-asan ..
+    make clean && make "$@" -j $(nproc)
+    BPFTRACE_ASAN=$PWD/src/bpftrace-asan ./tests/memleak-tests.sh
 fi
