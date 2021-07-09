@@ -125,6 +125,11 @@ private:
   void binop_string(Binop &binop);
   void binop_buf(Binop &binop);
   void binop_int(Binop &binop);
+  void binop_ptr(Binop &binop);
+
+  void unop_int(Unop &unop);
+  void unop_ptr(Unop &unop);
+
   void kstack_ustack(const std::string &ident,
                      StackType stack_type,
                      const location &loc);
@@ -161,6 +166,8 @@ private:
                                ScopedExprDeleter &scoped_del,
                                location loc,
                                const std::string &temp_name);
+
+  void createIncDec(Unop &unop);
 
   Node *root_ = nullptr;
 

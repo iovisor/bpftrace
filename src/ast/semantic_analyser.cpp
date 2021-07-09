@@ -1544,6 +1544,82 @@ void SemanticAnalyser::binop_int(Binop &binop)
   }
 }
 
+void SemanticAnalyser::binop_ptr(Binop &binop)
+{
+  auto &lht = binop.left->type;
+  auto &rht = binop.right->type;
+
+  bool left_is_ptr = lht.IsPtrTy();
+  auto &ptr = left_is_ptr ? lht : rht;
+  auto &other = left_is_ptr ? rht : lht;
+
+  auto compare = false;
+
+  // Do what C does
+  switch (binop.op)
+  {
+    case bpftrace::Parser::token::EQ:
+    case bpftrace::Parser::token::NE:
+    case bpftrace::Parser::token::LE:
+    case bpftrace::Parser::token::GE:
+    case bpftrace::Parser::token::LT:
+    case bpftrace::Parser::token::GT:
+      compare = true;
+      break;
+    default:;
+  }
+
+  auto invalid_op = [&binop, this, &lht, &rht]() {
+    LOG(ERROR, binop.loc, err_)
+        << "The " << opstr(binop)
+        << " operator can not be used on expressions of types " << lht << ", "
+        << rht;
+  };
+
+  // Binop on two pointers
+  if (other.IsPtrTy())
+  {
+    if (compare)
+    {
+      binop.type = CreateUInt(64);
+
+      if (is_final_pass())
+      {
+        auto le = lht.GetPointeeTy();
+        auto re = rht.GetPointeeTy();
+        if (*le != *re)
+        {
+          LOG(WARNING, binop.left->loc + binop.right->loc, out_)
+              << "comparison of distinct pointer types ('" << *le << ", '"
+              << *re << "')";
+        }
+      }
+    }
+    else
+      invalid_op();
+  }
+  // Binop on a pointer and int
+  else if (other.IsIntTy())
+  {
+    // sum is associative but minus only works with pointer on the left hand
+    // side
+    if (binop.op == bpftrace::Parser::token::MINUS && !left_is_ptr)
+      invalid_op();
+    else if (binop.op == bpftrace::Parser::token::PLUS ||
+             binop.op == bpftrace::Parser::token::MINUS)
+      binop.type = CreatePointer(*ptr.GetPointeeTy(), ptr.GetAS());
+    else if (compare)
+      binop.type = CreateInt(64);
+    else
+      invalid_op();
+  }
+  // Binop on a pointer and something else
+  else
+  {
+    invalid_op();
+  }
+}
+
 void SemanticAnalyser::visit(Binop &binop)
 {
   binop.left->accept(*this);
@@ -1553,6 +1629,12 @@ void SemanticAnalyser::visit(Binop &binop)
   auto &rht = binop.right->type;
   bool lsign = binop.left->type.IsSigned();
   bool rsign = binop.right->type.IsSigned();
+
+  if (lht.IsPtrTy() || rht.IsPtrTy())
+  {
+    binop_ptr(binop);
+    return;
+  }
 
   bool is_signed = lsign && rsign;
   switch (binop.op) {
@@ -1598,9 +1680,10 @@ void SemanticAnalyser::visit(Binop &binop)
   {
     binop_int(binop);
   }
-  else if ((lht.IsPtrTy() && rht.IsIntTy()) || (lht.IsIntTy() && rht.IsPtrTy()))
+  else if (lht.IsPtrTy() || rht.IsPtrTy())
   {
-    // noop
+    // This case is caught earlier, just here for readability of the if/else
+    // flow
   }
   // Compare type here, not the sized type as we it needs to work on strings of
   // different lengths
@@ -1646,20 +1729,33 @@ void SemanticAnalyser::visit(Unop &unop)
           << "The " << opstr(unop)
           << " operator must be applied to a map or variable";
     }
+
     if (unop.expr->is_map) {
       Map &map = static_cast<Map&>(*unop.expr);
-      assign_map_type(map, CreateInt64());
+      auto *maptype = get_map_type(map);
+      if (!maptype)
+        assign_map_type(map, CreateInt64());
     }
   }
 
   unop.expr->accept(*this);
 
+  auto valid_ptr_op = false;
+  switch (unop.op)
+  {
+    case bpftrace::Parser::token::INCREMENT:
+    case bpftrace::Parser::token::DECREMENT:
+    case bpftrace::Parser::token::MUL:
+      valid_ptr_op = true;
+      break;
+    default:;
+  }
+
   SizedType &type = unop.expr->type;
   if (is_final_pass())
   {
     // Unops are only allowed on ints (e.g. ~$x), dereference only on pointers
-    if (!type.IsIntegerTy() &&
-        !(unop.op == Parser::token::MUL && type.IsPtrTy()))
+    if (!type.IsIntegerTy() && !(type.IsPtrTy() && valid_ptr_op))
     {
       LOG(ERROR, unop.loc, err_)
           << "The " << opstr(unop)
@@ -1705,6 +1801,10 @@ void SemanticAnalyser::visit(Unop &unop)
     {
       unop.type = CreateUInt(8 * type.GetSize());
     }
+  }
+  else if (type.IsPtrTy() && valid_ptr_op)
+  {
+    unop.type = unop.expr->type;
   }
   else {
     unop.type = CreateInteger(64, type.IsSigned());
@@ -2968,6 +3068,15 @@ bool SemanticAnalyser::check_available(const Call &call, const AttachPoint &ap)
   return true;
 }
 
+SizedType *SemanticAnalyser::get_map_type(const Map &map)
+{
+  const std::string &map_ident = map.ident;
+  auto search = map_val_.find(map_ident);
+  if (search == map_val_.end())
+    return nullptr;
+  return &search->second;
+}
+
 void SemanticAnalyser::update_assign_map_type(const Map &map,
                                               SizedType &type,
                                               const SizedType &new_type)
@@ -3012,29 +3121,30 @@ void SemanticAnalyser::update_assign_map_type(const Map &map,
 void SemanticAnalyser::assign_map_type(const Map &map, const SizedType &type)
 {
   const std::string &map_ident = map.ident;
-  auto search = map_val_.find(map_ident);
-  if (search != map_val_.end()) {
-    if (search->second.IsNoneTy())
+
+  auto *maptype = get_map_type(map);
+  if (maptype)
+  {
+    if (maptype->IsNoneTy())
     {
-      if (is_final_pass()) {
+      if (is_final_pass())
         LOG(ERROR, map.loc, err_) << "Undefined map: " + map_ident;
-      }
       else
-      {
-        search->second = type;
-      }
+        *maptype = type;
     }
-    else if (search->second.type != type.type) {
+    else if (maptype->type != type.type)
+    {
       LOG(ERROR, map.loc, err_)
           << "Type mismatch for " << map_ident << ": "
           << "trying to assign value of type '" << type
-          << "' when map already contains a value of type '" << search->second;
+          << "' when map already contains a value of type '" << *maptype;
     }
-    update_assign_map_type(map, search->second, type);
+    update_assign_map_type(map, *maptype, type);
   }
-  else {
+  else
+  {
     // This map hasn't been seen before
-    map_val_.insert({map_ident, type});
+    map_val_.insert({ map_ident, type });
     if (map_val_[map_ident].IsIntTy())
     {
       // Store all integer values as 64-bit in maps, so that there will

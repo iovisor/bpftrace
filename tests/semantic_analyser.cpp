@@ -1043,7 +1043,7 @@ TEST(semantic_analyser, unop_increment_decrement)
   test("kprobe:f { --@x; }", 0);
 
   test("kprobe:f { $x++; }", 1);
-  test("kprobe:f { @x = \"a\"; @x++; }", 1);
+  test("kprobe:f { @x = \"a\"; @x++; }", 10);
   test("kprobe:f { $x = \"a\"; $x++; }", 10);
 }
 
@@ -2072,6 +2072,88 @@ TEST(semantic_analyser, double_pointer_struct)
   assignment = static_cast<ast::AssignVarStatement *>(stmts->at(2));
   ASSERT_TRUE(assignment->var->type.IsIntTy());
   EXPECT_EQ(assignment->var->type.GetIntBitWidth(), 8ULL);
+}
+
+TEST(semantic_analyser, pointer_arith)
+{
+  test(R"_(BEGIN { $t = (int32*) 32; $t = $t + 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t +=1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t++ })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; ++$t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t = $t - 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t -=1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t-- })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; --$t })_", 0);
+
+  // pointer compare
+  test(R"_(BEGIN { $t = (int32*) 32; @ = ($t > $t); })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; @ = ($t < $t); })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; @ = ($t >= $t); })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; @ = ($t <= $t); })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; @ = ($t == $t); })_", 0);
+
+  // map
+  test(R"_(BEGIN { @ = (int32*) 32; @ = @ + 1 })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; @ +=1 })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; @++ })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; ++@ })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; @ = @ - 1 })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; @ -=1 })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; @-- })_", 0);
+  test(R"_(BEGIN { @ = (int32*) 32; --@ })_", 0);
+
+  // associativity
+  test(R"_(BEGIN { $t = (int32*) 32; $t = $t + 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t = 1 + $t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t = $t - 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $t = 1 - $t })_", 1);
+
+  // invalid ops
+  test(R"_(BEGIN { $t = (int32*) 32; $t *= 5 })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t /= 5 })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t %= 5 })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t <<= 5 })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t >>= 5 })_", 1);
+
+  test(R"_(BEGIN { $t = (int32*) 32; $t -= $t })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t += $t })_", 1);
+
+  // invalid types
+  test(R"_(BEGIN { $t = (int32*) 32; $t += "abc" })_", 1);
+  test(R"_(BEGIN { $t = (int32*) 32; $t += comm })_", 1);
+  test(
+      R"_(struct A {}; BEGIN { $t = (int32*) 32; $s = *(struct A*) 0; $t += $s })_",
+      1);
+}
+
+TEST(semantic_analyser, pointer_compare)
+{
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t < 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t > 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t <= 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t >= 1 })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t != 1 })_", 0);
+
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t < $t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t > $t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t <= $t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t >= $t })_", 0);
+  test(R"_(BEGIN { $t = (int32*) 32; $c = $t != $t })_", 0);
+
+  // pointer compare diff types
+  test(R"_(BEGIN { $t = (int32*) 32; $y = (int64*) 1024; @ = ($t > $y); })_",
+       0);
+  test(R"_(BEGIN { $t = (int32*) 32; $y = (int64*) 1024; @ = ($t < $y); })_",
+       0);
+  test(R"_(BEGIN { $t = (int32*) 32; $y = (int64*) 1024; @ = ($t >= $y); })_",
+       0);
+  test(R"_(BEGIN { $t = (int32*) 32; $y = (int64*) 1024; @ = ($t <= $y); })_",
+       0);
+  test(R"_(BEGIN { $t = (int32*) 32; $y = (int64*) 1024; @ = ($t == $y); })_",
+       0);
+
+  test_for_warning("k:f { $a = (int8*) 1; $b = (int16*) 2; $c = ($a == $b) }",
+                   "comparison of distinct pointer types ('int8, 'int16')");
 }
 
 // Basic functionality test

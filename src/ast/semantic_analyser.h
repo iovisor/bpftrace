@@ -97,6 +97,7 @@ private:
 
   void check_stack_call(Call &call, bool kernel);
 
+  SizedType *get_map_type(const Map &map);
   void assign_map_type(const Map &map, const SizedType &type);
   void update_assign_map_type(const Map &map,
                               SizedType &type,
@@ -106,6 +107,7 @@ private:
   ProbeType single_provider_type(void);
   AddrSpace find_addrspace(ProbeType pt);
 
+  void binop_ptr(Binop &op);
   void binop_int(Binop &op);
 
   bool in_loop(void)
