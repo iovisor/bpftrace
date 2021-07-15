@@ -20,8 +20,6 @@
  * 07-Sep-2018	Brendan Gregg	Created this.
  */
 
-#include <linux/oom.h>
-
 BEGIN
 {
 	printf("Tracing oom_kill_process()... Hit Ctrl-C to end.\n");

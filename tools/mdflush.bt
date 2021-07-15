@@ -13,9 +13,6 @@
  * 08-Sep-2018	Brendan Gregg	Created this.
  */
 
-#include <linux/genhd.h>
-#include <linux/bio.h>
-
 BEGIN
 {
 	printf("Tracing md flush events... Hit Ctrl-C to end.\n");

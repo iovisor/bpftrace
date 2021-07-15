@@ -15,16 +15,6 @@
  * 08-Sep-2018	Brendan Gregg	Created this.
  */
 
-#include <linux/fs.h>
-#include <linux/sched.h>
-
-// from fs/namei.c:
-struct nameidata {
-        struct path     path;
-        struct qstr     last;
-        // [...]
-};
-
 BEGIN
 {
 	printf("Tracing dcache lookups... Hit Ctrl-C to end.\n");

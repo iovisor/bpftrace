@@ -17,8 +17,7 @@
  * 23-Nov-2018  Dale Hamel      created this.
  */
 
-#include <linux/socket.h>
-#include <net/sock.h>
+#include <sys/socket.h>
 
 BEGIN
 {
