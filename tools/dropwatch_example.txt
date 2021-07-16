@@ -1,0 +1,54 @@
+Demonstrations of dropwatch, the Linux bpftrace/eBPF version.
+
+
+dropwatch prints details of packets that were dropped by the kernel,
+including the kernel software stack trace and hardware trap info.
+
+# ./dropwatch.bt
+Attaching 5 probes...
+Tracing kernel sw packets drops. Hit Ctrl-C to end.
+08:40:25
+@[
+    kfree_skb+1
+    ip_rcv_core.isra.23+487
+    ip_list_rcv+202
+    __netif_receive_skb_list_core+667
+    netif_receive_skb_list_internal+451
+    gro_normal_list.part.155+25
+    napi_complete_done+103
+    virtqueue_napi_complete+42
+    virtnet_poll+790
+    __napi_poll+43
+    net_rx_action+566
+    __softirqentry_text_start+201
+    irq_exit_rcu+212
+    common_interrupt+127
+    asm_common_interrupt+30
+    default_idle+19
+    default_idle_call+50
+    do_idle+514
+    cpu_startup_entry+25
+    start_secondary+283
+    secondary_startup_64_no_verify+194
+]: 3
+
+[...]
+
+# ./dropwatch.bt hw
+Attaching 5 probes...
+Tracing kernel hw packets drops. Hit Ctrl-C to end.
+drop at fid_miss, dev driver netdevsim, protocol 0x08, skb len 142
+drop at ttl_value_is_too_small, dev driver netdevsim, protocol 0x08, skb len 142
+drop at fid_miss, dev driver netdevsim, protocol 0x08, skb len 142
+drop at blackhole_route, dev driver netdevsim, protocol 0x08, skb len 142
+drop at ttl_value_is_too_small, dev driver netdevsim, protocol 0x08, skb len 142
+[...]
+
+The first example shows kernel packets drops via kfree_skb. The second
+example shows kernel hardware drops via devlink tap info.
+
+This tool is useful to diagnose where packets are getting dropped.
+
+USAGE:
+
+# ./tcpdrop.bt [hw]

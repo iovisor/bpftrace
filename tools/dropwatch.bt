@@ -1,0 +1,76 @@
+#!/usr/bin/bpftrace
+/*
+ * dropwatch.bt Trace kernel packets software/hardware drops.
+ *              For Linux, uses bpftrace and eBPF.
+ *
+ * USAGE: dropwatch.bt [hw]
+ *
+ * This provides kernel packets software drops by printing drop stacks
+ * every 1 second. Or provides kernel packets hardware drops with
+ * interface and trap info.
+ *
+ * Copyright (c) 2021 Hangbin Liu.
+ * Licensed under the Apache License, Version 2.0 (the "License")
+ */
+
+#include <linux/devlink.h>
+#include <net/devlink.h>
+
+// from net/core/devlink.c
+struct devlink_trap_item {
+        struct devlink_trap *trap;
+        // [...]
+};
+
+BEGIN
+{
+	printf("Tracing kernel %s packets drops. Hit Ctrl-C to end.\n",
+	       str($1) == "hw" ? "hw" : "sw");
+}
+
+tracepoint:skb:kfree_skb
+/ str($1) != "hw" /
+{
+	@[kstack] = count();
+}
+
+kprobe:devlink_trap_report
+/ str($1) == "hw" /
+{
+	$devlink = (struct devlink *)arg0;
+	$skb = (struct sk_buff*)arg1;
+	$trap_item = (struct devlink_trap_item *)arg2;
+	$devlink_port = (struct devlink_port *)arg4;
+
+	/* The same with dropwatch, we only ignore CONTROL type, see
+	 * include/uapi/linux/devlink.h: enum devlink_trap_type
+	*/
+	if ($trap_item->trap->type == DEVLINK_TRAP_TYPE_CONTROL) {
+		return;
+	}
+
+	if ($devlink_port->type == DEVLINK_PORT_TYPE_ETH) {
+		$dev = (struct net_device *)$devlink_port->type_dev;
+		printf("drop at %s, input port name %s, ifindex %d, dev driver %s, protocol 0x%02x, skb len %u\n",
+		       str($trap_item->trap->name), $dev->name, $dev->ifindex,
+		       str($devlink->dev->driver->name), $skb->protocol, $skb->len);
+	} else {
+		printf("drop at %s, dev driver %s, protocol 0x%02x, skb len %u\n",
+		       str($trap_item->trap->name), str($devlink->dev->driver->name),
+		       $skb->protocol, $skb->len);
+	}
+}
+
+interval:s:1
+/ str($1) != "hw" /
+{
+        time();
+        print(@);
+        clear(@);
+}
+
+END
+/ str($1) != "hw" /
+{
+        clear(@);
+}
