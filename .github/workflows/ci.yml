@@ -31,6 +31,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: "6.0"
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -38,6 +39,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: "6.0"
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -45,6 +47,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: 7
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -52,6 +55,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 7
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -59,6 +63,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: 8
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -66,6 +71,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 8
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -73,6 +79,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: 9
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -80,6 +87,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 9
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -87,6 +95,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: 10
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -94,6 +103,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 10
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -103,6 +113,7 @@ jobs:
           CC: clang-10
           CXX: clang++-10
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -110,6 +121,7 @@ jobs:
           TYPE: Debug
           LLVM_VERSION: 11
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -117,6 +129,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 11
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 1
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -124,6 +137,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 12
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 0 # LLVM 12 seems to contain a memory leak
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -131,6 +145,7 @@ jobs:
           TYPE: Release
           LLVM_VERSION: 12
           RUN_ALL_TESTS: 1
+          RUN_MEMLEAK_TEST: 0 # LLVM 12 seems to contain a memory leak
           RUNTIME_TEST_DISABLE: probe.kprobe_offset_fail_size
           BASE: bionic
           VENDOR_GTEST: ON
@@ -178,6 +193,7 @@ jobs:
         -v /lib/modules:/lib/modules:ro
         -v /usr/src:/usr/src:ro
         -e RUN_ALL_TESTS=${RUN_ALL_TESTS}
+        -e RUN_MEMLEAK_TEST="${RUN_MEMLEAK_TEST}"
         -e CMAKE_EXTRA_FLAGS="${CMAKE_EXTRA_FLAGS}"
         -e RUNTIME_TEST_DISABLE="${RUNTIME_TEST_DISABLE}"
         -e VENDOR_GTEST="${VENDOR_GTEST}"
