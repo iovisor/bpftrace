@@ -150,6 +150,22 @@ void ResourceAnalyser::visit(Call &call)
   {
     resources_.stackid_maps.insert(call.type.stack_type);
   }
+  else if (call.func == "skboutput")
+  {
+    long snaplen = 80;
+
+    if (call.vargs->size() == 3)
+    {
+      auto &slen_arg = *call.vargs->at(2);
+      Integer &slen = static_cast<Integer&>(slen_arg);
+      snaplen = slen.n;
+    }
+
+    auto &file_arg = *call.vargs->at(0);
+    String &file = static_cast<String&>(file_arg);
+
+    resources_.skboutput_args_.emplace_back(file.str, snaplen);
+  }
 }
 
 void ResourceAnalyser::visit(Map &map)

@@ -1101,6 +1101,30 @@ void IRBuilderBPF::CreateOverrideReturn(Value *ctx, Value *rc)
   createCall(override_func, { ctx, rc }, "override");
 }
 
+void IRBuilderBPF::CreateSkboutput(Value *skb, AllocaInst *data, size_t size, int snaplen)
+{
+  Value *map_ptr = CreateBpfPseudoCallId(bpftrace_.maps[MapManager::Type::PerfEvent].value()->id);
+
+  Value *flags = getInt64(((uint64_t) snaplen << 32) | BPF_F_CURRENT_CPU);
+  Value *size_val = getInt64(size);
+
+  // int bpf_skb_output(void *skb, struct bpf_map *map, u64 flags,
+  //                    void *data, u64 size)
+  FunctionType *skb_output_func_type = FunctionType::get(getInt64Ty(),
+                                                         { skb->getType(),
+                                                           map_ptr->getType(),
+                                                           getInt64Ty(),
+                                                           data->getType(),
+                                                           getInt64Ty() },
+                                                         false);
+
+  PointerType *skb_output_func_ptr_type = PointerType::get(skb_output_func_type, 0);
+  Constant *skb_output_func = ConstantExpr::getCast(Instruction::IntToPtr,
+                                                    getInt64(libbpf::BPF_FUNC_skb_output),
+                                                    skb_output_func_ptr_type);
+  createCall(skb_output_func, {skb, map_ptr, flags, data, size_val}, "skb_output");
+}
+
 Value *IRBuilderBPF::CreatKFuncArg(Value *ctx,
                                    SizedType &type,
                                    std::string &name)

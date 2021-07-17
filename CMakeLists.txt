@@ -115,6 +115,7 @@ set(CMAKE_REQUIRED_DEFINITIONS)
 find_package(LibBpf)
 find_package(LibBfd)
 find_package(LibOpcodes)
+find_package(LibPcap)
 
 if(POLICY CMP0075)
   cmake_policy(SET CMP0075 NEW)
@@ -263,6 +264,10 @@ if (LIBBPF_BTF_DUMP_FOUND)
     set(BPFTRACE_FLAGS "${BPFTRACE_FLAGS}" HAVE_LIBBPF_BTF_DUMP_EMIT_TYPE_DECL)
   endif()
 endif(LIBBPF_BTF_DUMP_FOUND)
+
+if(LIBPCAP_FOUND)
+  set(BPFTRACE_FLAGS "${BPFTRACE_FLAGS}" HAVE_LIBPCAP)
+endif(LIBPCAP_FOUND)
 
 add_subdirectory(src/arch)
 add_subdirectory(src/ast)

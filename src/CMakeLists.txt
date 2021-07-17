@@ -39,6 +39,7 @@ add_library(libbpftrace
   types.cpp
   usdt.cpp
   utils.cpp
+  pcap_writer.cpp
   ${BFD_DISASM_SRC}
 )
 # So it's not "liblibbpftrace"
@@ -115,6 +116,10 @@ if (LIBBPF_BTF_DUMP_FOUND)
   target_include_directories(libbpftrace PUBLIC ${LIBBPF_INCLUDE_DIRS})
   target_link_libraries(libbpftrace ${LIBBPF_LIBRARIES})
 endif(LIBBPF_BTF_DUMP_FOUND)
+
+if(LIBPCAP_FOUND)
+  target_link_libraries(libbpftrace ${LIBPCAP_LIBRARIES})
+endif(LIBPCAP_FOUND)
 
 if(HAVE_BFD_DISASM)
   if(STATIC_LINKING)

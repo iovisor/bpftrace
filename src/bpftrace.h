@@ -25,6 +25,7 @@
 #include "struct.h"
 #include "types.h"
 #include "utils.h"
+#include "pcap_writer.h"
 
 namespace bpftrace {
 
@@ -134,6 +135,9 @@ public:
   std::string get_string_literal(const ast::Expression *expr) const;
   std::optional<std::string> get_watchpoint_binary_path() const;
   virtual bool is_traceable_func(const std::string &func_name) const;
+  int create_pcaps(void);
+  void close_pcaps(void);
+  bool write_pcaps(uint64_t id, uint64_t ns, uint8_t *pkt, unsigned int size);
 
   std::vector<std::unique_ptr<AttachedProbe>> attached_probes_;
   std::vector<Probe> watchpoint_probes_;
@@ -149,6 +153,8 @@ public:
   std::map<std::string, std::string> macros_;
   std::map<std::string, uint64_t> enums_;
   std::unordered_set<std::string> traceable_funcs_;
+
+  std::vector<std::unique_ptr<PCAPwriter>> pcaps;
 
   unsigned int join_argnum_ = 16;
   unsigned int join_argsize_ = 1024;
