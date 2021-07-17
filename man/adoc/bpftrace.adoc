@@ -38,7 +38,16 @@ Trace processes calling sleep while spawning `sleep 5` as a child process::
   # bpftrace -e 'kprobe:do_nanosleep { printf("%d sleeping\n", pid); }' -c 'sleep 5'
 ----
 
+== Supported architectures
+
+x86_64, arm64 and s390x
+
 == Options
+
+////
+Custom prefix to easily link section
+////
+:idprefix: flags_
 
 === Output format
 
@@ -141,10 +150,26 @@ u:lib.so:"fn(char const*)" { printf("arg0:%s\n", str(arg0));}
 *-dd*::
   verbose debug mode
 
+////
+!
+!
+!
+This prefix reset must be at the end of the section, else cross references break
+!
+!
+////
+
 == Environment Variables
 
 Some behavior can only be controlled through environment variables.
 This section lists all those variables.
+
+////
+Custom prefix to easily link section
+////
+:idprefix: envvar_
+
+
 
 === BPFTRACE_STRLEN
 
@@ -217,14 +242,21 @@ If you're getting a lot of dropped events bpftrace may not be processing events 
 It may be useful to bump the value higher so more events can be queued up.
 The tradeoff is that bpftrace will use more memory.
 
-== Supported architectures
+////
+!
+!
+!
+This prefix reset must be at the end of the section, else cross references break
+!
+!
+////
 
-x86_64, arm64 and s390x
+:idprefix: _
 
 ////
-Custom prefix to easily link to a language section
+Custom prefix to easily link to a section
 ////
-:idprefix: language-
+:idprefix: language_
 
 == bpftrace Language
 
@@ -782,7 +814,7 @@ i:s:1 {
 !
 !
 !
-This prefix reset must be at the end of the language section, else cross references break
+This prefix reset must be at the end of the section, else cross references break
 !
 !
 ////
@@ -983,6 +1015,11 @@ For string arguments use the `str()` call to retrieve the value.
 
 |===
 
+////
+Custom prefix to easily link to a function
+////
+:idprefix: functions_
+
 == Map Functions
 
 Map functions are built-in functions who's return value can only be assigned to maps.
@@ -990,8 +1027,9 @@ The data type associated with these functions are only for internal use and are 
 
 Functions that are marked *async* are asynchronous which can lead to unexpected behavior, see the <<Sync and Async>> section for more information.
 
-[#functions-avg]
-=== avg(int64 n)
+=== avg
+
+* `avg(int64 n)`
 
 Calculate the running average of `n` between consecutive calls.
 
@@ -1007,8 +1045,9 @@ i:s:1 {
 Internally this keeps two values in the map: value count and running total.
 The average is computed in user-space when printing by dividing the total by the count.
 
-[#functions-clear]
-=== clear(map m)
+=== clear
+
+* `clear(map m)`
 
 *async*
 
@@ -1025,8 +1064,9 @@ i:s:10 {
 }
 ----
 
-[#functions-count]
-=== count()
+=== count
+
+* `count()`
 
 Count how often this function is called.
 
@@ -1045,8 +1085,9 @@ i:s:10 {
 }
 ----
 
-[#functions-delete]
-=== delete(mapkey k)
+=== delete
+
+* `delete(mapkey k)`
 
 Delete a single key from a map.
 For a single value map this deletes the only element.
@@ -1063,8 +1104,9 @@ k:dummy {
 }
 ```
 
-[#functions-hist]
-=== hist(int64 n)
+=== hist
+
+* `hist(int64 n)`
 
 Create a log2 histogram of `n`.
 
@@ -1091,8 +1133,9 @@ Results in:
 [1G, 2G)             820 |@@@@@@@@@@@@@@@@@@@@@@@@@@@                         |
 ----
 
-[#functions-lhist]
-=== lhist(int64 n, int64 min, int64 max, int64 step)
+=== lhist
+
+* `lhist(int64 n, int64 min, int64 max, int64 step)`
 
 Create a linear histogram of `n`.
 `lhist` creates `M` (`(max - min) / step`) buckets in the range `[min,max)` where each bucket is `step` in size.
@@ -1124,18 +1167,21 @@ Prints:
 [9, 10)              318 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@       |
 ----
 
-[#functions-max]
-=== max(int64 n)
+=== max
+
+* `max(int64 n)`
 
 Update the map with `n` if `n` is bigger than the current value held.
 
-[#functions-min]
-=== min(int64 n)
+=== min
+
+* `min(int64 n)`
 
 Update the map with `n` if `n` is smaller than the current value held.
 
-[#functions-stats]
-=== stats(int64 n)
+=== stats
+
+* `stats(int64 n)`
 
 `stats` combines the `count`, `avg` and `sum` calls into one.
 
@@ -1152,13 +1198,15 @@ kprobe:vfs_read {
 @
 ----
 
-[#functions-sum]
-=== sum(int64 n)
+=== sum
+
+* `sum(int64 n)`
 
 Calculate the sum of all `n` passed.
 
-[#functions-zero]
-=== zero(map m)
+=== zero
+
+* `zero(map m)`
 
 *async*
 
@@ -1172,8 +1220,9 @@ Functions that are marked *async* are asynchronous which can lead to unexpected 
 
 *unsafe* functions can have dangerous side effects and should be used with care, the `--unsafe` flag is required for use.
 
-[#functions-buf]
-=== buf_t buf(void * data, [int64 length])
+=== buf
+
+* `buf_t buf(void * data, [int64 length])`
 
 `buf` reads `length` amount of bytes from address `data`.
 The maximum value of `length` is limited to the `BPFTRACE_STRLEN` variable.
@@ -1194,8 +1243,9 @@ i:s:1 {
 \xc2\x02\x00\x00\x00\x00\x00\x00
 ----
 
-[#functions-cat]
-=== void cat(string namefmt, [...args])
+=== cat
+
+* `void cat(string namefmt, [...args])`
 
 *async*
 
@@ -1217,8 +1267,9 @@ t:syscalls:sys_enter_execve {
 55f683ee2000-55f683ee3000 rw-p 00000000 00:00 0
 ----
 
-[#functions-cgroupid]
-=== uint64 cgroupid(const string path)
+=== cgroupid
+
+* `uint64 cgroupid(const string path)`
 
 *compile time*
 
@@ -1231,16 +1282,18 @@ BEGIN {
 ----
 
 
-[#functions-void exit]
-=== void exit()
+=== exit
+
+* `void exit()`
 
 *async*
 
 Terminate bpftrace, as if a `SIGTERM` was received.
 The `END` probe will still trigger (if specified) and maps will be printed.
 
-[#functions-join]
-=== void join(char *arr[], [char * sep = ' '])
+=== join
+
+* `void join(char *arr[], [char * sep = ' '])`
 
 *async*
 
@@ -1255,8 +1308,9 @@ tracepoint:syscalls:sys_enter_execve {
 }
 ----
 
-[#functions-kaddr]
-=== uint64 kaddr(const string name)
+=== kaddr
+
+* `uint64 kaddr(const string name)`
 
 *compile time*
 
@@ -1264,15 +1318,17 @@ Get the address of the kernel symbol `name`.
 
 The following script:
 
-[#functions-kptr]
-=== T * kptr(T * ptr)
+=== kptr
+
+* `T * kptr(T * ptr)`
 
 Marks `ptr` as a kernel address space pointer.
 See the address-spaces section for more information on address-spaces.
 The pointer type is left unchanged.
 
-[#functions-ksym]
-=== ksym_t ksym(uint64 addr)
+=== ksym
+
+* `ksym_t ksym(uint64 addr)`
 
 *async*
 
@@ -1294,8 +1350,9 @@ Prints:
 do_nanosleep
 ----
 
-[#functions-macaddr]
-=== macaddr_t macaddr(char [6] mac)
+=== macaddr
+
+* `macaddr_t macaddr(char [6] mac)`
 
 Create a buffer that holds a macaddress as read from `mac`
 This buffer can be printed in the canonical string format using the `%s` format specifier.
@@ -1312,8 +1369,9 @@ Prints:
 SRC 18:C0:4D:08:2E:BB, DST 74:83:C2:7F:8C:FF
 ----
 
-[#functions-ntop]
-=== inet_t ntop()
+=== ntop
+
+* `inet_t ntop()`
 
 .variants
 * `inet_t ntop([int64 af, ] int addr)`
@@ -1325,8 +1383,9 @@ SRC 18:C0:4D:08:2E:BB, DST 74:83:C2:7F:8C:FF
 If an integer or `char[4]` is given, ntop assumes IPv4, if a `char[16]` is given, ntop assumes IPv6.
 You can also pass the address type (e.g. AF_INET) explicitly as the first parameter.
 
-[#functions-override]
-=== override(uint64 rc)
+=== override
+
+* `override(uint64 rc)`
 
 *unsafe*
 
@@ -1360,8 +1419,9 @@ ioctl(PERF_EVENT_IOC_SET_BPF): Invalid argument
 Error attaching probe: 'kprobe:vfs_read'
 ----
 
-[#functions-reg]
-=== reg(string name)
+=== reg
+
+* `reg(string name)`
 
 .Supported probes
 * kprobe
@@ -1370,8 +1430,9 @@ Error attaching probe: 'kprobe:vfs_read'
 Get the contents of the register identified by `name`.
 Valid names depend on the CPU architecture.
 
-[#functions-signal]
-=== signal(string sig)
+=== signal
+
+* `signal(string sig)`
 
 *unsafe*
 
@@ -1399,8 +1460,9 @@ $ ls
 Trace/breakpoint trap (core dumped)
 ----
 
-[#functions-sizeof]
-=== sizeof(T x)
+=== sizeof
+
+* `sizeof(T x)`
 
 *compile time*
 
@@ -1412,8 +1474,9 @@ Returns size of the argument in bytes.
 Similar to C/C++ `sizeof` operator.
 Note that the expression does not get evaluated.
 
-[#functions-str]
-=== str(char * data [, uint32 length)
+=== str
+
+* `str(char * data [, uint32 length)`
 
 *Helper* `probe_read_str, probe_read_{kernel,user}_str`
 
@@ -1423,8 +1486,9 @@ In case the string is longer than the specified length only `length - 1` bytes a
 
 When available (starting from kernel 5.5, see the `--info` flag) bpftrace will automatically use the `kernel` or `user` variant of `probe_read_{kernel,user}_str` based on the address space of `data`, see <<Address-spaces>> for more information.
 
-[#functions-strftime]
-=== strtime_t strftime(const string fmt, int64 timestamp_ns)
+=== strftime
+
+* `strtime_t strftime(const string fmt, int64 timestamp_ns)`
 
 *async*
 
@@ -1441,7 +1505,7 @@ i:s:1 {
 
 bpftrace also supports the following format string extensions:
 
-[%header,cols="~,~"]
+[%header,cols="~,~]
 |===
 | Specifier
 | Description
@@ -1451,8 +1515,9 @@ bpftrace also supports the following format string extensions:
 
 |===
 
-[#functions-strncmp]
-=== int64 strncmp(char * s1, char * s2, int64 n)
+=== strncmp
+
+* `int64 strncmp(char * s1, char * s2, int64 n)`
 
 `strncmp` compares up to `n` characters string `s1` and string `s2`.
 If they're equal `0` is returned, else a non-zero value is returned.
@@ -1461,8 +1526,9 @@ bpftrace doesn't read past the length of the shortest string.
 
 The use of the `==` and `!=` operators is recommended over calling `strncmp` directly.
 
-[#functions-system]
-=== void system(string namefmt [, ...args])
+=== system
+
+* `void system(string namefmt [, ...args])`
 
 *unsafe*
 *async*
@@ -1519,8 +1585,9 @@ t:syscalls:sys_enter_execve {
 }
 ----
 
-[#functions-time]
-=== void time(const string fmt)
+=== time
+
+* `void time(const string fmt)`
 
 *async*
 
@@ -1529,8 +1596,9 @@ Unlike `strftime()` `time()` doesn't send a timestamp from the probe, instead it
 
 bpftrace uses the `strftime(3)` function for formatting time and supports the same format specifiers.
 
-[#functions-uaddr]
-=== T * uaddr(const string sym)
+=== uaddr
+
+* `T * uaddr(const string sym)`
 
 .Supported probes
 * uprobes
@@ -1552,15 +1620,17 @@ uprobe:/bin/bash:readline {
 }
 ----
 
-[#functions-uptr]
-=== T * uptr(T * ptr)
+=== uptr
+
+* `T * uptr(T * ptr)`
 
 Marks `ptr` as a user address space pointer.
 See the address-spaces section for more information on address-spaces.
 The pointer type is left unchanged.
 
-[#functions-usym]
-=== usym_t usym(uint64 * addr)
+=== usym
+
+* `usym_t usym(uint64 * addr)`
 
 *async*
 
@@ -1569,7 +1639,7 @@ The pointer type is left unchanged.
 * uretprobes
 
 
-Equal to <<functions-ksym>> but resolves user space symbols
+Equal to <<functions_ksym>> but resolves user space symbols
 
 
 ----
@@ -1585,8 +1655,9 @@ Prints:
 readline
 ----
 
-[#functions-path]
-=== char * path(struct path * path)
+=== path
+
+* `char * path(struct path * path)`
 
 *Kernel* 5.10
 
@@ -1596,8 +1667,9 @@ Return full path referenced by struct path pointer in argument.
 
 This function can only be used by functions that are allowed to, these functions are contained in the `btf_allowlist_d_path` set in the kernel.
 
-[#functions-unwatch]
-=== void unwatch(void * addr)
+=== unwatch
+
+* `void unwatch(void * addr)`
 
 *async*
 
@@ -1605,8 +1677,9 @@ Removes a watchpoint
 
 == Output formatting
 
-[#functions-print]
-=== void print(T val)
+=== print
+
+* `void print(T val)`
 
 *async*
 
@@ -1647,8 +1720,9 @@ abc
 Note that maps are printed by reference while scalar values are copied.
 This means that updating and printing maps in a fast loop will likely result in bogus map values as the map will be updated before userspace gets the time to dump and print it.
 
-[#functions-printf]
-=== void printf(const char * fmt, args...)
+=== printf
+
+* `void printf(const char * fmt, args...)`
 
 *async*
 
@@ -1670,7 +1744,7 @@ The non-standard ones can be found in the table below:
 
 | r
 | buffer
-| Hex-formatted string to print arbitrary binary content returned by the buf (<<functions-buf>>) function.
+| Hex-formatted string to print arbitrary binary content returned by the buf (<<functions_buf>>) function.
 
 |===
 
@@ -1682,6 +1756,16 @@ Colors are supported too, using standard terminal escape sequences:
 print("\033[31mRed\t\033[33mYellow\033[0m\n")
 ----
 
+////
+!
+!
+!
+This prefix reset must be at the end of the section, else cross references break
+!
+!
+////
+
+:idprefix: _
 
 == Probes
 
