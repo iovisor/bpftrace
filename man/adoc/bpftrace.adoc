@@ -1029,6 +1029,7 @@ Functions that are marked *async* are asynchronous which can lead to unexpected 
 
 === avg
 
+.variants
 * `avg(int64 n)`
 
 Calculate the running average of `n` between consecutive calls.
@@ -1047,6 +1048,7 @@ The average is computed in user-space when printing by dividing the total by the
 
 === clear
 
+.variants
 * `clear(map m)`
 
 *async*
@@ -1066,6 +1068,7 @@ i:s:10 {
 
 === count
 
+.variants
 * `count()`
 
 Count how often this function is called.
@@ -1087,6 +1090,7 @@ i:s:10 {
 
 === delete
 
+.variants
 * `delete(mapkey k)`
 
 Delete a single key from a map.
@@ -1106,6 +1110,7 @@ k:dummy {
 
 === hist
 
+.variants
 * `hist(int64 n)`
 
 Create a log2 histogram of `n`.
@@ -1135,6 +1140,7 @@ Results in:
 
 === lhist
 
+.variants
 * `lhist(int64 n, int64 min, int64 max, int64 step)`
 
 Create a linear histogram of `n`.
@@ -1169,18 +1175,21 @@ Prints:
 
 === max
 
+.variants
 * `max(int64 n)`
 
 Update the map with `n` if `n` is bigger than the current value held.
 
 === min
 
+.variants
 * `min(int64 n)`
 
 Update the map with `n` if `n` is smaller than the current value held.
 
 === stats
 
+.variants
 * `stats(int64 n)`
 
 `stats` combines the `count`, `avg` and `sum` calls into one.
@@ -1200,12 +1209,14 @@ kprobe:vfs_read {
 
 === sum
 
+.variants
 * `sum(int64 n)`
 
 Calculate the sum of all `n` passed.
 
 === zero
 
+.variants
 * `zero(map m)`
 
 *async*
@@ -1222,6 +1233,7 @@ Functions that are marked *async* are asynchronous which can lead to unexpected 
 
 === buf
 
+.variants
 * `buf_t buf(void * data, [int64 length])`
 
 `buf` reads `length` amount of bytes from address `data`.
@@ -1245,6 +1257,7 @@ i:s:1 {
 
 === cat
 
+.variants
 * `void cat(string namefmt, [...args])`
 
 *async*
@@ -1269,6 +1282,7 @@ t:syscalls:sys_enter_execve {
 
 === cgroupid
 
+.variants
 * `uint64 cgroupid(const string path)`
 
 *compile time*
@@ -1284,6 +1298,7 @@ BEGIN {
 
 === exit
 
+.variants
 * `void exit()`
 
 *async*
@@ -1293,6 +1308,7 @@ The `END` probe will still trigger (if specified) and maps will be printed.
 
 === join
 
+.variants
 * `void join(char *arr[], [char * sep = ' '])`
 
 *async*
@@ -1310,6 +1326,7 @@ tracepoint:syscalls:sys_enter_execve {
 
 === kaddr
 
+.variants
 * `uint64 kaddr(const string name)`
 
 *compile time*
@@ -1320,6 +1337,7 @@ The following script:
 
 === kptr
 
+.variants
 * `T * kptr(T * ptr)`
 
 Marks `ptr` as a kernel address space pointer.
@@ -1328,6 +1346,7 @@ The pointer type is left unchanged.
 
 === ksym
 
+.variants
 * `ksym_t ksym(uint64 addr)`
 
 *async*
@@ -1352,6 +1371,7 @@ do_nanosleep
 
 === macaddr
 
+.variants
 * `macaddr_t macaddr(char [6] mac)`
 
 Create a buffer that holds a macaddress as read from `mac`
@@ -1371,8 +1391,6 @@ SRC 18:C0:4D:08:2E:BB, DST 74:83:C2:7F:8C:FF
 
 === ntop
 
-* `inet_t ntop()`
-
 .variants
 * `inet_t ntop([int64 af, ] int addr)`
 * `inet_t ntop([int64 af, ] char addr[4])`
@@ -1385,6 +1403,7 @@ You can also pass the address type (e.g. AF_INET) explicitly as the first parame
 
 === override
 
+.variants
 * `override(uint64 rc)`
 
 *unsafe*
@@ -1421,6 +1440,7 @@ Error attaching probe: 'kprobe:vfs_read'
 
 === reg
 
+.variants
 * `reg(string name)`
 
 .Supported probes
@@ -1432,7 +1452,9 @@ Valid names depend on the CPU architecture.
 
 === signal
 
+.variants
 * `signal(string sig)`
+* `signal(uint32 signum)`
 
 *unsafe*
 
@@ -1440,9 +1462,6 @@ Valid names depend on the CPU architecture.
 
 *Helper* `bpf_send_signal`
 
-.variants
-* `signal(string sig)`
-* `signal(uint32 signum)`
 
 Probe types: k(ret)probe, u(ret)probe, USDT, profile
 
@@ -1462,13 +1481,11 @@ Trace/breakpoint trap (core dumped)
 
 === sizeof
 
-* `sizeof(T x)`
-
-*compile time*
-
 .variants
 * `sizeof(TYPE)`
 * `sizeof(EXPRESSION)`
+
+*compile time*
 
 Returns size of the argument in bytes.
 Similar to C/C++ `sizeof` operator.
@@ -1476,6 +1493,7 @@ Note that the expression does not get evaluated.
 
 === str
 
+.variants
 * `str(char * data [, uint32 length)`
 
 *Helper* `probe_read_str, probe_read_{kernel,user}_str`
@@ -1488,6 +1506,7 @@ When available (starting from kernel 5.5, see the `--info` flag) bpftrace will a
 
 === strftime
 
+.variants
 * `strtime_t strftime(const string fmt, int64 timestamp_ns)`
 
 *async*
@@ -1517,6 +1536,7 @@ bpftrace also supports the following format string extensions:
 
 === strncmp
 
+.variants
 * `int64 strncmp(char * s1, char * s2, int64 n)`
 
 `strncmp` compares up to `n` characters string `s1` and string `s2`.
@@ -1528,6 +1548,7 @@ The use of the `==` and `!=` operators is recommended over calling `strncmp` dir
 
 === system
 
+.variants
 * `void system(string namefmt [, ...args])`
 
 *unsafe*
@@ -1587,6 +1608,7 @@ t:syscalls:sys_enter_execve {
 
 === time
 
+.variants
 * `void time(const string fmt)`
 
 *async*
@@ -1598,6 +1620,7 @@ bpftrace uses the `strftime(3)` function for formatting time and supports the sa
 
 === uaddr
 
+.variants
 * `T * uaddr(const string sym)`
 
 .Supported probes
@@ -1622,6 +1645,7 @@ uprobe:/bin/bash:readline {
 
 === uptr
 
+.variants
 * `T * uptr(T * ptr)`
 
 Marks `ptr` as a user address space pointer.
@@ -1630,6 +1654,7 @@ The pointer type is left unchanged.
 
 === usym
 
+.variants
 * `usym_t usym(uint64 * addr)`
 
 *async*
@@ -1657,6 +1682,7 @@ readline
 
 === path
 
+.variants
 * `char * path(struct path * path)`
 
 *Kernel* 5.10
@@ -1669,6 +1695,7 @@ This function can only be used by functions that are allowed to, these functions
 
 === unwatch
 
+.variants
 * `void unwatch(void * addr)`
 
 *async*
@@ -1679,6 +1706,7 @@ Removes a watchpoint
 
 === print
 
+.variants
 * `void print(T val)`
 
 *async*
@@ -1722,6 +1750,7 @@ This means that updating and printing maps in a fast loop will likely result in 
 
 === printf
 
+.variants
 * `void printf(const char * fmt, args...)`
 
 *async*
