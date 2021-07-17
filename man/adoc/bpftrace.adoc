@@ -187,9 +187,8 @@ Default: 0 if ASLR is enabled on system and `-c` option is not given; otherwise 
 
 By default, bpftrace caches the results of symbols resolutions only when ASLR (Address Space Layout Randomization) is disabled.
 This is because the symbol addresses change with each execution with ASLR.
-However, disabling caching may incur some performance.
+However, disabling caching may incur some performance penalty.
 Set this env variable to 1 to force bpftrace to cache.
-This is fine if only trace one program execution.
 
 === BPFTRACE_VMLINUX
 
@@ -291,7 +290,7 @@ This script has two action blocks and a total of 3 probes.
 The first action block uses the special `BEGIN` probe, which fires once during `bpftrace` startup.
 This probe is used to print a header, indicating that the tracing has started.
 
-The second action block uses two probes, one for `open` and one for `openat`, and defines an action that prints the file being `open`ed as well as the `pid` and `comm` of the process that execute the syscall.
+The second action block uses two probes, one for `open` and one for `openat`, and defines an action that prints the file being `open` ed as well as the `pid` and `comm` of the process that execute the syscall.
 See the <<Probes>> section for details on the available probe types.
 
 === Identifiers
@@ -369,7 +368,7 @@ To improve the readability of big literals a underscore `_` can be used as field
 
 Character constants can be defined by enclosing the character in single quotes, e.g. `$c = 'c';`.
 
-String constants cab be defined by enclosing the character string in double quotes, e.g. `$str = "Hello world";`.
+String constants can be defined by enclosing the character string in double quotes, e.g. `$str = "Hello world";`.
 
 Characters and strings support the following escape sequences:
 
@@ -473,7 +472,7 @@ The following relational operators are defined for integers and pointers.
 | <
 | left-hand expression is less than right-hand
 
-| <
+| \<=
 | left-hand expression is less than or equal to right-hand
 
 | >
@@ -514,11 +513,11 @@ The following assignment operators can be used on both `map` and `scratch` varia
 | =
 | Assignment, assign the right-hand expression to the left-hand variable
 
-| <<=
-| Update the variable with it's value left shifted by the number of bits specified by the right-hand expression value
+| <\<=
+| Update the variable with its value left shifted by the number of bits specified by the right-hand expression value
 
 | >>=
-| Update the variable with it's value right shifted by the number of bits specified by the right-hand expression value
+| Update the variable with its value right shifted by the number of bits specified by the right-hand expression value
 
 | +=
 | Increment the variable by the right-hand expression value
@@ -662,7 +661,7 @@ kprobe:dummy {
 
 `C` like structs are supported by bpftrace.
 Fields are accessed with the `.` operator.
-Fields of a pointer to a struct can be accessed with the `->` operator.
+Fields of a pointer to a struct can be accessed with the `\->` operator.
 
 Custom struct can be defined in the preamble
 
@@ -715,7 +714,7 @@ if (condition) {
 
 === Loops
 
-Since kernel 5.3 BPF supports loops as long as the verifier can proof they're bounded and fit within the instruction limit.
+Since kernel 5.3 BPF supports loops as long as the verifier can prove they're bounded and fit within the instruction limit.
 
 In bpftrace loops are available through the `while` statement.
 
@@ -794,8 +793,36 @@ This prefix reset must be at the end of the language section, else cross referen
 
 While BPF in the kernel can do a lot there are still things that can only be done from user space, like the outputting (printing) of data.
 The way bpftrace handles this is by sending events from the BPF program which user-space will pick up some time in the future (usually in milliseconds).
+Operations that happen in the kernel are 'synchronous' ('sync') and those that are handled in user space are 'asynchronous' ('async')
 
-This can lead to some unexpected behavior,
+The async behaviour can lead to some unexpected behavior as updates can happen before user space had time to process the event.
+One example is updating a map value in a tight loop:
+
+----
+BEGIN {
+    @=0;
+    unroll(10) {
+      print(@);
+      @++;
+    }
+    exit()
+}
+----
+
+Maps are printed by reference not by value and as the value gets updated right after the print user-space will likely only see the final value once it processes the event:
+
+----
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+@: 10
+----
 
 == Address-spaces
 
@@ -816,7 +843,7 @@ The address space can be changed with the `kptr()` and `uptr()` functions.
 == Builtins
 
 Builtins are special variables built into the language.
-Unlike the scratch and map variable they don't need a `$` or `@` as prefix.
+Unlike the scratch and map variable they don't need a `$` or `@` as prefix (except for the positional parameters).
 
 [%header,cols="~,~,~,~,~"]
 |===
@@ -886,7 +913,7 @@ For string arguments use the `str()` call to retrieve the value.
 | string
 | n/a
 | n/a
-| Name of the current function being trace (kprobes,uprobes)
+| Name of the current function being traced (kprobes,uprobes)
 
 | gid
 | uint64
@@ -904,7 +931,7 @@ For string arguments use the `str()` call to retrieve the value.
 | uint64
 | 4.1 / 5.7
 | ktime_get_ns / ktime_get_boot_ns
-| nanoseconds since kernel boot. On kernels that support `ktime_get_boot_ns` this includes the time spend suspended, on older kernels it does not.
+| nanoseconds since kernel boot. On kernels that support `ktime_get_boot_ns` this includes the time spent suspended, on older kernels it does not.
 
 | pid
 | uint64
@@ -930,7 +957,7 @@ For string arguments use the `str()` call to retrieve the value.
 | n/a
 | Value returned by the function being traced (kretprobe, uretprobe, kretfunc)
 
-| `arg0`, `arg1`, `...argn`
+| `sarg0`, `sarg1`, `...sargn`
 | int64
 | n/a
 | n/a
@@ -1302,7 +1329,9 @@ You can also pass the address type (e.g. AF_INET) explicitly as the first parame
 === override(uint64 rc)
 
 *unsafe*
+
 *Kernel* 4.16
+
 *Helper* `bpf_override`
 
 .Supported probes
@@ -1339,25 +1368,15 @@ Error attaching probe: 'kprobe:vfs_read'
 * uprobe
 
 Get the contents of the register identified by `name`.
-Valid names depend on the CPU architecture:
-
-[cols="~,~"]
-|===
-|*Arch*
-|*register names*
-
-| x86
-| r15, r14, r13, r12, bp, bx, r11, r10, r9, r8, ax, cx, dx, si, di, orig_ax, ip, cs, flags, sp, ss
-
-| aarch64
-| r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30, sp, pc, pstate
-|===
+Valid names depend on the CPU architecture.
 
 [#functions-signal]
 === signal(string sig)
 
 *unsafe*
+
 *Kernel* 5.3
+
 *Helper* `bpf_send_signal`
 
 .variants
@@ -1397,7 +1416,6 @@ Note that the expression does not get evaluated.
 === str(char * data [, uint32 length)
 
 *Helper* `probe_read_str, probe_read_{kernel,user}_str`
-*Probe types* any
 
 `str` reads a NULL terminated (`\0`) string from `data`.
 The maximum string length is limited by the `BPFTRACE_STR_LEN` env variable, unless `length` is specified and shorter than the maximum.
@@ -1421,6 +1439,18 @@ i:s:1 {
 }
 ----
 
+bpftrace also supports the following format string extensions:
+
+[%header,cols="~,~"]
+|===
+| Specifier
+| Description
+
+| `%f`
+| Microsecond as a decimal number, zero-padded on the left
+
+|===
+
 [#functions-strncmp]
 === int64 strncmp(char * s1, char * s2, int64 n)
 
@@ -1437,8 +1467,8 @@ The use of the `==` and `!=` operators is recommended over calling `strncmp` dir
 *unsafe*
 *async*
 
-`system` lets bpftrace run the specified command (`fork` and `exec`) until it completes and print it's stdout.
-The `command` is ran with the same privileges as bpftrace and it blocks execution of the processing threads which can lead to missed events and delays processing of async events.
+`system` lets bpftrace run the specified command (`fork` and `exec`) until it completes and print its stdout.
+The `command` is run with the same privileges as bpftrace and it blocks execution of the processing threads which can lead to missed events and delays processing of async events.
 
 
 ----
@@ -1695,7 +1725,7 @@ These are special built-in events provided by the bpftrace runtime.
 `BEGIN` is triggered before all other probes are attached.
 `END` is triggered after all other probes are detached.
 
-Note that specifying an `END` probe doesn't override the printing off 'non-empty' maps at exit.
+Note that specifying an `END` probe doesn't override the printing of 'non-empty' maps at exit.
 To prevent the printing all used maps need be cleared, which can be done in the `END` probe:
 
 ----
@@ -1751,7 +1781,7 @@ hardware:cache-misses:1e6 { @[pid] = count(); }
 .shortnames
 * `i`
 
-The interval probe fires at a fixed interval as specified by it's time spec.
+The interval probe fires at a fixed interval as specified by its time spec.
 Interval fire on one CPU at the time, unlike <<profile>> probes.
 
 [#probes-iterator]
@@ -1766,7 +1796,7 @@ Interval fire on one CPU at the time, unlike <<profile>> probes.
 .shortnames
 * `it`
 
-These are eBPF iterator probes, that allows iteration over kernel objects.
+These are eBPF iterator probes, that allow iteration over kernel objects.
 
 Iterator probe can't be mixed with any other probe, not even other iterator.
 
@@ -1869,7 +1899,7 @@ NetworkManager:1155 /var/lib/sss/mc/passwd (deleted)
 * Kernel features:BTF
 * Probe types:kfunc
 
-`kfunc` s attach to kernel function similar to <<probes-kprobe>>.
+``kfunc``s attach to kernel function similar to <<probes-kprobe>>.
 They make use of eBPF trampolines which allows kernel code to call into BPF programs with near zero overhead.
 
 `kfunc` s make use of BTF type information to derive the type of function arguments at compile time.
@@ -2114,7 +2144,7 @@ bpftrace takes the address as a kernel space address.
 
 In the second form, the address present in `argN` when `function` is entered is
 monitored. A pid or command must be provided for this form. If synchronous (`watchpoint`), a
-`SIGSTOP` is sent to the tracee upon function entry. The tracee will be `SIGCONT`d after the
+`SIGSTOP` is sent to the tracee upon function entry. The tracee will be ``SIGCONT``ed after the
 watchpoint is attached. This is to ensure events are not missed. If you want to avoid the
 `SIGSTOP` + `SIGCONT` use `asyncwatchpoint`.
 
